@@ -1,0 +1,1 @@
+run "pip install pygame" in the terminal
