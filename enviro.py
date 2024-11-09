@@ -2,85 +2,149 @@ import pygame
 import sys
 import random
 
-# Initialize Pygame
-pygame.init()
+import numpy as np
+import torch
+import torch.nn as nn
 
-# Define constants
-CELL_SIZE = 40  # Size of each grid cell in pixels
-GRID_WIDTH = 20  # Number of cells horizontally
-GRID_HEIGHT = 15  # Number of cells vertically
+# Device setup
+device = torch.device('cpu')
+if torch.cuda.is_available():
+    print("USING GPU")
+    device = torch.device('cuda')
+
+# DQN class definition
+class DQN:
+    def __init__(self, stateSize, actionSize):
+        self.stateSize = stateSize
+        self.actionSize = actionSize
+        self.model = self.buildModel()
+        self.memory = []
+        self.gamma = 0.2
+        self.epsilon = 1.0
+        self.epsilonMin = 0.01
+        self.epsilonDecay = 0.999
+        self.batchSize = 1
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+
+    def buildModel(self):
+        return nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.stateSize[0] * self.stateSize[1], 24),
+            nn.ReLU(),
+            nn.Linear(24, 24),
+            nn.ReLU(),
+            nn.Linear(24, self.actionSize)
+        )
+
+    def act(self, state):
+        if np.random.rand() <= self.epsilon:
+            return random.choice(range(self.actionSize))
+        state = torch.FloatTensor(state).unsqueeze(0)
+        actValues = self.model(state)
+        return torch.argmax(actValues).item()
+
+    def remember(self, state, action, reward, nextState, done):
+        self.memory.append((state, action, reward, nextState, done))
+        if len(self.memory) > 1000:
+            self.memory.pop(0)
+
+    def replay(self):
+        if len(self.memory) < self.batchSize:
+            return
+        miniBatch = random.sample(self.memory, self.batchSize)
+        for (state, action, reward, nextState, done) in miniBatch:
+            target = reward
+            if not done:
+                nextState = torch.FloatTensor(nextState).unsqueeze(0)
+                target += self.gamma * torch.max(self.model(nextState)).item()
+            state = torch.FloatTensor(state).unsqueeze(0)
+            targetF = self.model(state).detach().numpy()
+            targetF[0][action] = target
+            self.model.zero_grad()
+            self.optimizer.zero_grad()
+            output = self.model(state)
+            loss = nn.MSELoss()(output, torch.FloatTensor(targetF))
+            loss.backward()
+            self.optimizer.step()
+        if self.epsilon > self.epsilonMin:
+            self.epsilon *= self.epsilonDecay
+
+# Pygame setup
+pygame.init()
+print("STARTING...")
+
+# Constants
+CELL_SIZE = 40
+GRID_WIDTH = 20
+GRID_HEIGHT = 15
 WINDOW_WIDTH = CELL_SIZE * GRID_WIDTH
 WINDOW_HEIGHT = CELL_SIZE * GRID_HEIGHT
-FPS = 30  
+FPS = 30
 
-# Define colors
+# Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)      # Open space
-RED = (255, 0, 0)        # Fences
-BLUE = (0, 0, 255)       # Player
-BROWN = (139, 69, 19)    # Farmland Stage 1
-DARKGOLDENROD = (160, 90, 23)    # Farmland Stage 2
-COPPER = (191, 123, 42)    # Farmland Stage 3
-TIGERSEYE = (222, 157, 0)    # Farmland Stage 4
-YELLOW = (255, 215, 0)    # Farmland Stage 5
-PURPLE = (160, 32, 240)  # Enemy
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+BROWN = (139, 69, 19)
+PURPLE = (160, 32, 240)
 
-# Define cell types
+# Cell types
 OPEN_SPACE = 0
 FENCE = 1
 PLAYER = 2
 FARMLAND = 3
 ENEMY = 4
 
-# Create the grid
+# Create grid
 def create_grid(width, height):
     grid = [[OPEN_SPACE for _ in range(width)] for _ in range(height)]
     return grid
 
-# Initialize grid
-grid = create_grid(GRID_WIDTH, GRID_HEIGHT)
+def grow_farmland(grid):
+    new_grid = [row[:] for row in grid]
+    for y in range(len(grid)):
+        for x in range(len(grid[0])):
+            if grid[y][x] == FARMLAND:
+                if y > 0 and grid[y-1][x] == OPEN_SPACE:
+                    new_grid[y-1][x] = FARMLAND
+                if y < len(grid) - 1 and grid[y+1][x] == OPEN_SPACE:
+                    new_grid[y+1][x] = FARMLAND
+                if x > 0 and grid[y][x-1] == OPEN_SPACE:
+                    new_grid[y][x-1] = FARMLAND
+                if x < len(grid[0]) - 1 and grid[y][x+1] == OPEN_SPACE:
+                    new_grid[y][x+1] = FARMLAND
+    return new_grid
 
-# Place fences around the edge
-for x in range(GRID_WIDTH):
-    grid[0][x] = FENCE
-    grid[GRID_HEIGHT - 1][x] = FENCE
-for y in range(GRID_HEIGHT):
-    grid[y][0] = FENCE
-    grid[y][GRID_WIDTH - 1] = FENCE
+player = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=5)
+enemy = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=4)
 
-# Place the player at the center
-player_pos = [GRID_WIDTH // 2, GRID_HEIGHT // 2]
-grid[player_pos[1]][player_pos[0]] = PLAYER
+def setup():
+    grid = create_grid(GRID_WIDTH, GRID_HEIGHT)
+    for x in range(GRID_WIDTH):
+        grid[0][x] = FENCE
+        grid[GRID_HEIGHT - 1][x] = FENCE
+    for y in range(GRID_HEIGHT):
+        grid[y][0] = FENCE
+        grid[y][GRID_WIDTH - 1] = FENCE
 
-# Place the enemy randomly
-enemy_pos = [random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2)]
-while grid[enemy_pos[1]][enemy_pos[0]] != OPEN_SPACE:
+    player_pos = [GRID_WIDTH // 2, GRID_HEIGHT // 2]
+    grid[player_pos[1]][player_pos[0]] = PLAYER
+
     enemy_pos = [random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2)]
-grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
+    while grid[enemy_pos[1]][enemy_pos[0]] != OPEN_SPACE:
+        enemy_pos = [random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2)]
+    grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
 
-# Set up the display
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption("2D Grid Environment with Farmland and Enemy")
-clock = pygame.time.Clock()
+    return grid, player_pos, enemy_pos
 
 def draw_grid(screen, grid):
     for y in range(len(grid)):
         for x in range(len(grid[0])):
             rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            # Determine cell color based on grid type, with priority to farmland
             if grid[y][x] == FARMLAND:
-                cur_stage = farm_dict.get((y,x))
-                if cur_stage == 1:
-                    color = BROWN
-                elif cur_stage == 2:
-                    color = DARKGOLDENROD
-                elif cur_stage == 3:
-                    color = COPPER
-                elif cur_stage == 4:
-                    color = TIGERSEYE
-                elif cur_stage == 5:
-                    color = YELLOW
+                color = BROWN
             elif grid[y][x] == PLAYER:
                 color = BLUE
             elif grid[y][x] == ENEMY:
@@ -90,33 +154,97 @@ def draw_grid(screen, grid):
             elif grid[y][x] == FENCE:
                 color = RED
             pygame.draw.rect(screen, color, rect)
-            pygame.draw.rect(screen, BLACK, rect, 1)  # Cell border
+            pygame.draw.rect(screen, BLACK, rect, 1)
 
-def random_move(pos):
-    direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
-    new_x, new_y = pos[0], pos[1]
-    
-    if direction == 'LEFT':
-        new_x -= 1
-    elif direction == 'RIGHT':
-        new_x += 1
-    elif direction == 'UP':
-        new_y -= 1
-    elif direction == 'DOWN':
-        new_y += 1
-    
-    if (0 <= new_x < GRID_WIDTH and 0 <= new_y < GRID_HEIGHT and grid[new_y][new_x] != FENCE):
-        return [new_x, new_y]
-    return pos  # If move is invalid, stay in the same position
+def playerAct(pos, action, grid):
+    newX, newY = pos[0], pos[1]
+    if action == 0 and pos[1] > 0: newY -= 1
+    elif action == 1 and pos[1] < GRID_HEIGHT - 1: newY += 1
+    elif action == 2 and pos[0] > 0: newX -= 1
+    elif action == 3 and pos[0] < GRID_WIDTH - 1: newX += 1
+    elif action == 4:
+        farmland_x, farmland_y = pos[0], pos[1] + 1
+        if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == OPEN_SPACE:
+            grid[farmland_y][farmland_x] = FARMLAND
+    if grid[newY][newX] != FENCE:
+        return [newX, newY]
+    return pos
+
+def enemyAct(pos, action, grid):
+    newX, newY = pos[0], pos[1]
+    if action == 0 and pos[1] > 0: newY -= 1
+    elif action == 1 and pos[1] < GRID_HEIGHT - 1: newY += 1
+    elif action == 2 and pos[0] > 0: newX -= 1
+    elif action == 3 and pos[0] < GRID_WIDTH - 1: newX += 1
+    if grid[newY][newX] != FENCE:
+        return [newX, newY]
+    return pos
+
+def train(episodes):
+    print("TRAINING START")
+    previous_cell_type = OPEN_SPACE
+    for episode in range(episodes):
+        grid, player_pos, enemy_pos = setup()
+        state = np.array(grid)
+        done = False
+        totalPlayerReward = 0
+        totalEnemyReward = 0
+
+        for i in range(100):
+            playerAction = player.act(state)
+            enemyAction = enemy.act(state)
+
+            # Take player action
+            grid[player_pos[1]][player_pos[0]] = previous_cell_type
+            player_pos = playerAct(player_pos, playerAction, grid)
+            playerReward = 0
+            done = False
+
+            # Take enemy action
+            grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
+            enemy_pos = enemyAct(enemy_pos, enemyAction, grid)
+            enemyReward = 0
+            done = False
+
+            if player_pos == enemy_pos:
+                playerReward = -100
+                enemyReward = 100
+                done = True
+
+            previous_cell_type = grid[player_pos[1]][player_pos[0]]
+
+            # Set the player's current position
+            grid[player_pos[1]][player_pos[0]] = PLAYER
+
+            # Set the enemy's current position
+            grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
+
+            nextState = np.array(grid)
+            player.remember(state, playerAction, playerReward, nextState, done)
+            enemy.remember(state, enemyAction, enemyReward, nextState, done)
+
+            player.replay()
+            enemy.replay()
+
+            state = nextState
+            totalPlayerReward += playerReward
+            totalEnemyReward += enemyReward
+
+        print(f"Episode {episode+1}/{episodes} - Player Reward: {totalPlayerReward} - Player Epsilon: {player.epsilon:.4f} - Enemy Reward: {totalEnemyReward} - Enemy Epsilon: {enemy.epsilon:.4f}")
+
+train(500)
+
+# Set up the display
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("2D Grid Environment with Farmland and Enemy")
+clock = pygame.time.Clock()
 
 # Main loop
 running = True
 # Track the type of cell under the player to restore it when they move
 previous_cell_type = OPEN_SPACE
 
-# Farmland dictionary
-farm_dict = {}
-growth_tick = 0
+grid, player_pos, enemy_pos = setup()
 
 while running:
     clock.tick(FPS)
@@ -125,49 +253,41 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    # Player action with 10% chance to place farmland, 90% chance to move
-    # This will be a reward system later
-    action = random.choices(['move', 'farm'], weights=[90, 10])[0]
-    
-    if growth_tick >= 25:
-        for crop in farm_dict.keys():
-            if farm_dict[crop] < 5:
-                farm_dict[crop] += 1
-                growth_tick = 0
+    state = np.array(grid)
+    playerAction = player.act(state)
+    enemyAction = enemy.act(state)
 
-    if action == 'move':
-        # Update the previous cell to the stored type (either OPEN_SPACE or FARMLAND)
-        grid[player_pos[1]][player_pos[0]] = previous_cell_type
-        player_pos = random_move(player_pos)
-        # Store the cell type at the new player position
-        previous_cell_type = grid[player_pos[1]][player_pos[0]]
-        
-    elif action == 'farm':
-        # Attempt to place farmland one block south of the player's current position
-        farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
-        if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == OPEN_SPACE:
-            grid[farmland_y][farmland_x] = FARMLAND
-            farm_dict[(farmland_y,farmland_x)] = 1
-            print("Placed farmland at:", (farmland_x, farmland_y))  # Debug statement to confirm farmland placement
+    # Take player action
+    grid[player_pos[1]][player_pos[0]] = previous_cell_type
+    player_pos = playerAct(player_pos, playerAction, grid)
+    playerReward = 0
+    done = False
+
+    # Take enemy action
+    grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
+    enemy_pos = enemyAct(enemy_pos, enemyAction, grid)
+    enemyReward = 0
+    done = False
+
+    if player_pos == enemy_pos:
+        playerReward = -100
+        enemyReward = 100
+        done = True
+
+    previous_cell_type = grid[player_pos[1]][player_pos[0]]
 
     # Set the player's current position
     grid[player_pos[1]][player_pos[0]] = PLAYER
 
-    # The player took the action
-    growth_tick += 1
+    # Set the enemy's current position
+    grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
 
-    # Move the enemy randomly
-    new_enemy_pos = random_move(enemy_pos)
+    nextState = np.array(grid)
+    player.remember(state, playerAction, playerReward, nextState, done)
+    enemy.remember(state, enemyAction, enemyReward, nextState, done)
 
-    ##! If the enemy destroys a crop, it cannot grow anymore
-    if (enemy_pos[1],enemy_pos[0]) in farm_dict.keys():
-        farm_dict.pop((enemy_pos[1],enemy_pos[0]), None)
-
-    # The enemy can't clear the player
-    if grid[enemy_pos[1]][enemy_pos[0]] != PLAYER:
-        grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE  # Clear old enemy position
-        enemy_pos = new_enemy_pos
-        grid[enemy_pos[1]][enemy_pos[0]] = ENEMY  # Update new enemy position
+    player.replay()
+    enemy.replay()
     
     # Draw everything
     screen.fill(WHITE)
