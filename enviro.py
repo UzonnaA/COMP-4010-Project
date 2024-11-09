@@ -82,13 +82,19 @@ WINDOW_HEIGHT = CELL_SIZE * GRID_HEIGHT
 FPS = 30
 
 # Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-BROWN = (139, 69, 19)
-PURPLE = (160, 32, 240)
+WHITE = (255, 255, 255)         # White
+BLACK = (0, 0, 0)               # Black
+GREEN = (0, 255, 0)             # Open Spaces
+RED = (255, 0, 0)               # Fences
+BLUE = (0, 0, 255)              # Player
+PURPLE = (160, 32, 240)         # Enemy
+
+# Farmland Colors
+BROWN = (139, 69, 19)           # Farmland Stage 1
+DARKGOLDENROD = (160, 90, 23)   # Farmland Stage 2
+COPPER = (191, 123, 42)         # Farmland Stage 3
+TIGERSEYE = (222, 157, 0)       # Farmland Stage 4
+YELLOW = (255, 215, 0)          # Farmland Stage 5
 
 # Cell types
 OPEN_SPACE = 0
@@ -102,20 +108,13 @@ def create_grid(width, height):
     grid = [[OPEN_SPACE for _ in range(width)] for _ in range(height)]
     return grid
 
-def grow_farmland(grid):
-    new_grid = [row[:] for row in grid]
-    for y in range(len(grid)):
-        for x in range(len(grid[0])):
-            if grid[y][x] == FARMLAND:
-                if y > 0 and grid[y-1][x] == OPEN_SPACE:
-                    new_grid[y-1][x] = FARMLAND
-                if y < len(grid) - 1 and grid[y+1][x] == OPEN_SPACE:
-                    new_grid[y+1][x] = FARMLAND
-                if x > 0 and grid[y][x-1] == OPEN_SPACE:
-                    new_grid[y][x-1] = FARMLAND
-                if x < len(grid[0]) - 1 and grid[y][x+1] == OPEN_SPACE:
-                    new_grid[y][x+1] = FARMLAND
-    return new_grid
+
+def grow_farmland(farmland):
+    # Progress the stages of growth 
+    for crop in farmland.keys():
+        if farmland[crop] < 5:
+            farmland[crop] += 1
+    return farmland
 
 player = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=5)
 enemy = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=4)
@@ -144,7 +143,17 @@ def draw_grid(screen, grid):
         for x in range(len(grid[0])):
             rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             if grid[y][x] == FARMLAND:
-                color = BROWN
+                cur_stage = farm_dict.get((y,x))
+                if cur_stage == 1:
+                    color = BROWN
+                elif cur_stage == 2:
+                    color = DARKGOLDENROD
+                elif cur_stage == 3:
+                    color = COPPER
+                elif cur_stage == 4:
+                    color = TIGERSEYE
+                elif cur_stage == 5:
+                    color = YELLOW
             elif grid[y][x] == PLAYER:
                 color = BLUE
             elif grid[y][x] == ENEMY:
@@ -156,7 +165,7 @@ def draw_grid(screen, grid):
             pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, BLACK, rect, 1)
 
-def playerAct(pos, action, grid):
+def playerAct(pos, action, grid, farmland):
     newX, newY = pos[0], pos[1]
     if action == 0 and pos[1] > 0: newY -= 1
     elif action == 1 and pos[1] < GRID_HEIGHT - 1: newY += 1
@@ -166,6 +175,7 @@ def playerAct(pos, action, grid):
         farmland_x, farmland_y = pos[0], pos[1] + 1
         if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == OPEN_SPACE:
             grid[farmland_y][farmland_x] = FARMLAND
+            farmland[(farmland_y,farmland_x)] = 1
     if grid[newY][newX] != FENCE:
         return [newX, newY]
     return pos
@@ -189,14 +199,22 @@ def train(episodes):
         done = False
         totalPlayerReward = 0
         totalEnemyReward = 0
+        
+        farm_training_dict = {}
+        growth_train_tick = 0
 
         for i in range(100):
             playerAction = player.act(state)
             enemyAction = enemy.act(state)
 
+            # If 25 actions have been taken, 
+            if growth_train_tick >= 25:
+                grow_farmland(farm_training_dict)
+                growth_train_tick = 0
+
             # Take player action
             grid[player_pos[1]][player_pos[0]] = previous_cell_type
-            player_pos = playerAct(player_pos, playerAction, grid)
+            player_pos = playerAct(player_pos, playerAction, grid, farm_training_dict)
             playerReward = 0
             done = False
 
@@ -205,6 +223,9 @@ def train(episodes):
             enemy_pos = enemyAct(enemy_pos, enemyAction, grid)
             enemyReward = 0
             done = False
+
+            # Actions have been taken
+            growth_train_tick += 1
 
             if player_pos == enemy_pos:
                 playerReward = -100
@@ -246,6 +267,9 @@ previous_cell_type = OPEN_SPACE
 
 grid, player_pos, enemy_pos = setup()
 
+farm_dict = {}
+growth_tick = 0
+
 while running:
     clock.tick(FPS)
     
@@ -257,9 +281,14 @@ while running:
     playerAction = player.act(state)
     enemyAction = enemy.act(state)
 
+    # If 25 actions have been taken, 
+    if growth_tick >= 25:
+        grow_farmland(farm_dict)
+        growth_tick = 0
+
     # Take player action
     grid[player_pos[1]][player_pos[0]] = previous_cell_type
-    player_pos = playerAct(player_pos, playerAction, grid)
+    player_pos = playerAct(player_pos, playerAction, grid, farm_dict)
     playerReward = 0
     done = False
 
@@ -268,6 +297,9 @@ while running:
     enemy_pos = enemyAct(enemy_pos, enemyAction, grid)
     enemyReward = 0
     done = False
+
+    # Actions have been taken
+    growth_tick += 1
 
     if player_pos == enemy_pos:
         playerReward = -100
