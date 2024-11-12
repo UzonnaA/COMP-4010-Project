@@ -12,11 +12,11 @@ class DQN(nn.Module):
         self.device = device
         self.model = self.buildModel().to(device)
         self.memory = []
-        self.gamma = 0.9
+        self.gamma = 0.8
         self.epsilon = 1
         self.epsilonMin = 0.01
-        self.epsilonDecay = 0.99
-        self.batchSize = 64
+        self.epsilonDecay = 0.99991
+        self.batchSize = 32
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
     def buildModel(self):

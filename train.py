@@ -17,7 +17,7 @@ def train(episodes):
 
     env = farmEnvironment()
 
-    player = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=5, device=device)
+    player = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=6, device=device)
     enemy = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=4, device=device)
     
     previous_cell_type = OPEN_SPACE
@@ -27,7 +27,7 @@ def train(episodes):
         totalPlayerReward = 0
         totalEnemyReward = 0
 
-        for i in tqdm(range(1000), desc=f"Episode {episode+1}", unit="step", leave=False):
+        for i in tqdm(range(500), desc=f"Episode {episode+1}", unit="step", leave=False):
             playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type = step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type)
             
             state = np.array(grid)

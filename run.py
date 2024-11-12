@@ -72,30 +72,35 @@ def step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type):
     state = np.array(grid)
     playerAction = player.act(state)
     enemyAction = enemy.act(state)
+    playerReward = 0
+    enemyReward = 0
+
+    # Take player action
+    grid[player_pos[1]][player_pos[0]] = previous_cell_type
+    if playerAction == 5:
+        farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
+        if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
+            playerReward = env.farmland[(farmland_y,farmland_x)]
+
+    player_pos = env.playerAct(player_pos, playerAction, grid)
+    done = False
+
+    # Take enemy action
+    grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
+    farmland_x, farmland_y = enemy_pos[0], enemy_pos[1] + 1
+    if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
+        enemyReward = env.farmland[(farmland_y,farmland_x)]
+
+    enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
+    done = False
 
     # If 25 actions have been taken, 
     if env.growth_tick >= 25:
         env.grow_farmland()
         env.growth_tick = 0
 
-    # Take player action
-    grid[player_pos[1]][player_pos[0]] = previous_cell_type
-    player_pos = env.playerAct(player_pos, playerAction, grid)
-    playerReward = 0
-    done = False
-
-    # Take enemy action
-    grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
-    enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
-    enemyReward = 0
-    done = False
-
     # Actions have been taken
     env.growth_tick += 1
-
-    dist = np.linalg.norm(np.array(player_pos) - np.array(enemy_pos))
-    enemyReward = max(0, 100 - dist)
-    playerReward = max(0, dist)
 
     previous_cell_type = grid[player_pos[1]][player_pos[0]]
 
