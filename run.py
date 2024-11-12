@@ -1,10 +1,6 @@
 import pygame
 import sys
-import random
 import numpy as np
-import torch
-import torch.nn as nn
-from network import DQN
 from constants import *
 from train import *
 
@@ -35,8 +31,7 @@ def run(player, enemy):
             if event.type == pygame.QUIT:
                 running = False
 
-        state = np.array(grid)
-        playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type = step(env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type)
+        playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type = step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type)
         
         # Draw everything
         screen.fill(WHITE)
@@ -73,7 +68,8 @@ def run(player, enemy):
     sys.exit()
 
 
-def step(env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type):
+def step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type):
+    state = np.array(grid)
     playerAction = player.act(state)
     enemyAction = enemy.act(state)
 
@@ -97,10 +93,9 @@ def step(env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_t
     # Actions have been taken
     env.growth_tick += 1
 
-    if player_pos == enemy_pos:
-        playerReward = -100
-        enemyReward = 100
-        done = True
+    dist = np.linalg.norm(np.array(player_pos) - np.array(enemy_pos))
+    enemyReward = max(0, 100 - dist)
+    playerReward = max(0, dist)
 
     previous_cell_type = grid[player_pos[1]][player_pos[0]]
 
@@ -112,4 +107,4 @@ def step(env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_t
 
     nextState = np.array(grid)
 
-    return playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type
+    return playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type

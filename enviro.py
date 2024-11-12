@@ -1,10 +1,4 @@
-import pygame
-import sys
 import random
-import numpy as np
-import torch
-import torch.nn as nn
-from network import DQN
 from constants import *
 
 class farmEnvironment:
