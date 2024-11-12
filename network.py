@@ -44,20 +44,28 @@ class DQN(nn.Module):
     def replay(self):
         if len(self.memory) < self.batchSize:
             return
+        
         miniBatch = random.sample(self.memory, self.batchSize)
+
         for (state, action, reward, nextState, done) in miniBatch:
             target = reward
+
             if not done:
                 nextState = torch.FloatTensor(nextState).unsqueeze(0).to(self.device)
                 target += self.gamma * torch.max(self.model(nextState)).item()
+
             state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+
             targetF = self.model(state).detach()
             targetF[0][action] = target
+
             self.model.zero_grad()
             self.optimizer.zero_grad()
             output = self.model(state)
-            loss = nn.MSELoss()(output, torch.FloatTensor(targetF).to(self.device))
+            loss = nn.MSELoss()(output, targetF)
+
             loss.backward()
             self.optimizer.step()
+
         if self.epsilon > self.epsilonMin:
             self.epsilon *= self.epsilonDecay
