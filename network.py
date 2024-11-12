@@ -13,7 +13,7 @@ class DQN:
         self.gamma = 0.2
         self.epsilon = 1.0
         self.epsilonMin = 0.01
-        self.epsilonDecay = 0.999
+        self.epsilonDecay = 1
         self.batchSize = 1
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 

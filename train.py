@@ -1,5 +1,6 @@
 from constants import *
 from enviro import *
+from run import step
 
 # Device setup
 device = torch.device('cpu')
@@ -23,47 +24,14 @@ def train(episodes):
         totalPlayerReward = 0
         totalEnemyReward = 0
         
-        farm_training_dict = {}
+        # farm_training_dict = {}
         growth_train_tick = 0
 
         for i in range(100):
-            playerAction = player.act(state)
-            enemyAction = enemy.act(state)
+            state = np.array(grid)
 
-            # If 25 actions have been taken, 
-            if growth_train_tick >= 25:
-                env.grow_farmland(farm_training_dict)
-                growth_train_tick = 0
-
-            # Take player action
-            grid[player_pos[1]][player_pos[0]] = previous_cell_type
-            player_pos = env.playerAct(player_pos, playerAction, grid, farm_training_dict)
-            playerReward = 0
-            done = False
-
-            # Take enemy action
-            grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
-            enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
-            enemyReward = 0
-            done = False
-
-            # Actions have been taken
-            growth_train_tick += 1
-
-            if player_pos == enemy_pos:
-                playerReward = -100
-                enemyReward = 100
-                done = True
-
-            previous_cell_type = grid[player_pos[1]][player_pos[0]]
-
-            # Set the player's current position
-            grid[player_pos[1]][player_pos[0]] = PLAYER
-
-            # Set the enemy's current position
-            grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
-
-            nextState = np.array(grid)
+            playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type = step(env, grid, player_pos, enemy_pos, state, player, enemy, previous_cell_type)
+            
             player.remember(state, playerAction, playerReward, nextState, done)
             enemy.remember(state, enemyAction, enemyReward, nextState, done)
 
