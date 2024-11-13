@@ -72,15 +72,17 @@ def step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type):
     state = np.array(grid)
     playerAction = player.act(state)
     enemyAction = enemy.act(state)
-    playerReward = 0
-    enemyReward = 0
+    playerReward = -1
+    enemyReward = -1
 
     # Take player action
     grid[player_pos[1]][player_pos[0]] = previous_cell_type
     if playerAction == 5:
         farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
-        if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
-            playerReward = env.farmland[(farmland_y,farmland_x)]
+        # if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND and grid[farmland_y][farmland_x] != ENEMY:
+        if (farmland_y, farmland_x) in env.farmland:
+            playerReward += env.farmland[(farmland_y,farmland_x)]*10
+            enemyReward -= env.farmland[(farmland_y,farmland_x)]*10
 
     player_pos = env.playerAct(player_pos, playerAction, grid)
     done = False
@@ -88,8 +90,11 @@ def step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type):
     # Take enemy action
     grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
     farmland_x, farmland_y = enemy_pos[0], enemy_pos[1] + 1
-    if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
-        enemyReward = env.farmland[(farmland_y,farmland_x)]
+    # if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND and grid[farmland_y][farmland_x] != PLAYER:
+    if (farmland_y, farmland_x) in env.farmland:
+        enemyReward += env.farmland[(farmland_y,farmland_x)]*10
+        playerReward -= env.farmland[(farmland_y,farmland_x)]*10
+        del env.farmland[(farmland_y,farmland_x)]
 
     enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
     done = False

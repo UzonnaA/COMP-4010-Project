@@ -59,7 +59,8 @@ class farmEnvironment:
         elif action == 5:
             farmland_x, farmland_y = pos[0], pos[1] + 1
 
-            if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
+            # if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND:
+            if (farmland_y, farmland_x) in self.farmland:
                 grid[farmland_y][farmland_x] = OPEN_SPACE
                 del self.farmland[(farmland_y,farmland_x)]
             
