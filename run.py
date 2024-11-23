@@ -36,7 +36,6 @@ def run(sharedDQN):
         playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type = step(
             env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type
         )
-        
         # Draw everything
         screen.fill(WHITE)
         

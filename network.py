@@ -5,7 +5,7 @@ import torch.nn as nn
 
 # DQN class definition
 class DQN(nn.Module):
-    def __init__(self, stateSize, actionSize, device):
+    def __init__(self, stateSize, actionSize, device, epsilonMin=0.01, epsilon=1):
         super(DQN, self).__init__()
         self.stateSize = stateSize
         self.actionSize = actionSize
@@ -13,8 +13,8 @@ class DQN(nn.Module):
         self.model = self.buildModel().to(device)
         self.memory = []
         self.gamma = 0.8
-        self.epsilon = 1
-        self.epsilonMin = 0.01
+        self.epsilon = epsilon
+        self.epsilonMin = epsilonMin
         self.epsilonDecay = 0.99991
         self.batchSize = 32
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)

@@ -21,6 +21,8 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=20, help="Number of episodes to train the model")
     parser.add_argument("--load", type=bool, default=True, help="Option to load the model (defaults to True)")
     parser.add_argument("--periodic-saving", type=bool, default=True, help="Save the weights periodically to a folder called weights (defaults to True)")
+    parser.add_argument("--device", type=str, default="cpu", help="Device to run the model on (defaults to cpu)")
+    parser.add_argument("--running_epsilon", type=float, default=0.1, help="Epsilon value for evaluating agent behaviour in run mode")
     
     args = parser.parse_args()
     network = None
@@ -31,9 +33,9 @@ if __name__ == "__main__":
         network = train(args.episodes, args.periodic_saving, args.load)
     
     if args.run:
-        device = torch.device('cpu')
+        device = torch.device(args.device)
         if(not network): # if the network isn't already in memory, load it from saved weights
-            network = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=6, device=device)
+            network = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=6, device=device, epsilon=args.running_epsilon)
             if(os.path.exists("weights/model.pth")):
                 print("Running with pre-trained model")
                 network.load_state_dict(torch.load("weights/model.pth", weights_only=True))

@@ -54,10 +54,10 @@ def step(env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type):
     return playerAction, enemyAction, False, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type
 
 # Training function
-def train(episodes, periodic_saving, load):
+def train(episodes, periodic_saving, load, device_name):
 
     # Device setup
-    device = torch.device('cpu')
+    device = torch.device(device_name)
     # if torch.cuda.is_available():
     #     print("USING GPU")
     #     device = torch.device('cuda')
