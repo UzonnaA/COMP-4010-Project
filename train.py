@@ -4,6 +4,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 from network import DQN
+import os
 
 # Define the step function here to avoid circular dependency
 def step(env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type):
@@ -53,7 +54,8 @@ def step(env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type):
     return playerAction, enemyAction, False, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type
 
 # Training function
-def train(episodes):
+def train(episodes, periodic_saving, load):
+
     # Device setup
     device = torch.device('cpu')
     # if torch.cuda.is_available():
@@ -66,6 +68,10 @@ def train(episodes):
 
     # Use a single shared DQN for both the player and the enemy
     sharedDQN = DQN(stateSize=(GRID_HEIGHT, GRID_WIDTH), actionSize=6, device=device)
+    
+    if load and os.path.exists("weights/model.pth"):
+        print("Loading model")
+        sharedDQN.load_state_dict(torch.load("weights/model.pth", weights_only=True))
     
     previous_cell_type = OPEN_SPACE
     for episode in range(episodes):
@@ -92,8 +98,13 @@ def train(episodes):
             state = nextState
             totalPlayerReward += playerReward
             totalEnemyReward += enemyReward
-
+            
+        if periodic_saving and (episode+1) % 5 == 0: # Save the model every 5 episodes
+            torch.save(sharedDQN.state_dict(), "weights/model.pth")
+            
         print(f"Episode {episode+1}/{episodes} - Player Reward: {totalPlayerReward} - Player Epsilon: {sharedDQN.epsilon:.4f} - Enemy Reward: {totalEnemyReward}")
+    
+    torch.save(sharedDQN.state_dict(), "weights/model.pth")
 
     return sharedDQN
 
