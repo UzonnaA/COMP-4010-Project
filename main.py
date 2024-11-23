@@ -1,6 +1,16 @@
+# from train import train
+# from run import run
+
+# player, enemy = train(20)
+# run(player, enemy)
+
+
 from train import train
 from run import run
 
-player, enemy = train(20)
-run(player, enemy)
+# Train the shared DQN
+sharedDQN = train(20)
+
+# Run the environment using the trained shared DQN
+run(sharedDQN)
 
