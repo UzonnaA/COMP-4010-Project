@@ -2,11 +2,11 @@ import pygame
 import sys
 import numpy as np
 from constants import *
-from train import *
+from train import train
+from enviro import farmEnvironment
 
 # Pygame setup
-def run(player, enemy):
-
+def run(sharedDQN):
     env = farmEnvironment()
 
     pygame.init()
@@ -31,8 +31,11 @@ def run(player, enemy):
             if event.type == pygame.QUIT:
                 running = False
 
-        playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type = step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type)
-        
+        # Use the updated step function that is now in train.py
+        from train import step  # Import step here to avoid circular import at the top
+        playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type = step(
+            env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type
+        )
         # Draw everything
         screen.fill(WHITE)
         
@@ -40,7 +43,7 @@ def run(player, enemy):
             for x in range(len(grid[0])):
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if grid[y][x] == FARMLAND:
-                    cur_stage = env.farmland.get((y,x))
+                    cur_stage = env.farmland.get((y, x))
                     if cur_stage == 1:
                         color = BROWN
                     elif cur_stage == 2:
@@ -66,55 +69,3 @@ def run(player, enemy):
 
     pygame.quit()
     sys.exit()
-
-
-def step(env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type):
-    state = np.array(grid)
-    playerAction = player.act(state)
-    enemyAction = enemy.act(state)
-    playerReward = -1
-    enemyReward = -1
-
-    # Take player action
-    grid[player_pos[1]][player_pos[0]] = previous_cell_type
-    if playerAction == 5:
-        farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
-        # if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND and grid[farmland_y][farmland_x] != ENEMY:
-        if (farmland_y, farmland_x) in env.farmland:
-            playerReward += env.farmland[(farmland_y,farmland_x)]*10
-            enemyReward -= env.farmland[(farmland_y,farmland_x)]*10
-
-    player_pos = env.playerAct(player_pos, playerAction, grid)
-    done = False
-
-    # Take enemy action
-    grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
-    farmland_x, farmland_y = enemy_pos[0], enemy_pos[1] + 1
-    # if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == FARMLAND and grid[farmland_y][farmland_x] != PLAYER:
-    if (farmland_y, farmland_x) in env.farmland:
-        enemyReward += env.farmland[(farmland_y,farmland_x)]*10
-        playerReward -= env.farmland[(farmland_y,farmland_x)]*10
-        del env.farmland[(farmland_y,farmland_x)]
-
-    enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
-    done = False
-
-    # If 25 actions have been taken, 
-    if env.growth_tick >= 25:
-        env.grow_farmland()
-        env.growth_tick = 0
-
-    # Actions have been taken
-    env.growth_tick += 1
-
-    previous_cell_type = grid[player_pos[1]][player_pos[0]]
-
-    # Set the player's current position
-    grid[player_pos[1]][player_pos[0]] = PLAYER
-
-    # Set the enemy's current position
-    grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
-
-    nextState = np.array(grid)
-
-    return playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, player, enemy, previous_cell_type

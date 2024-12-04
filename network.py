@@ -5,7 +5,7 @@ import torch.nn as nn
 
 # DQN class definition
 class DQN(nn.Module):
-    def __init__(self, stateSize, actionSize, device):
+    def __init__(self, stateSize, actionSize, device, epsilonMin=0.01, epsilon=1):
         super(DQN, self).__init__()
         self.stateSize = stateSize
         self.actionSize = actionSize
@@ -13,11 +13,21 @@ class DQN(nn.Module):
         self.model = self.buildModel().to(device)
         self.memory = []
         self.gamma = 0.8
-        self.epsilon = 1
-        self.epsilonMin = 0.01
+        self.epsilon = epsilon
+        self.epsilonMin = epsilonMin
         self.epsilonDecay = 0.99991
         self.batchSize = 32
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+
+    # def buildModel(self):
+    #     return nn.Sequential(
+    #         nn.Flatten(),
+    #         nn.Linear(self.stateSize[0] * self.stateSize[1], 24),
+    #         nn.ReLU(),
+    #         nn.Linear(24, 24),
+    #         nn.ReLU(),
+    #         nn.Linear(24, self.actionSize)
+    #     )
 
     def buildModel(self):
         return nn.Sequential(
@@ -26,15 +36,25 @@ class DQN(nn.Module):
             nn.ReLU(),
             nn.Linear(24, 24),
             nn.ReLU(),
-            nn.Linear(24, self.actionSize)
-        )
+            nn.Linear(24, self.actionSize * 2)  # Outputting actions for both agents
+    )
+
+    # def act(self, state):
+    #     if np.random.rand() <= self.epsilon:
+    #         return random.choice(range(self.actionSize))
+    #     state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+    #     actValues = self.model(state)
+    #     return torch.argmax(actValues).item()
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
-            return random.choice(range(self.actionSize))
+            # Random action for both agents
+            return (random.choice(range(self.actionSize)), random.choice(range(self.actionSize)))
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         actValues = self.model(state)
-        return torch.argmax(actValues).item()
+        # Split the output for farmer and enemy
+        farmerActionValues, enemyActionValues = torch.split(actValues, self.actionSize, dim=1)
+        return (torch.argmax(farmerActionValues).item(), torch.argmax(enemyActionValues).item())
 
     def remember(self, state, action, reward, nextState, done):
         self.memory.append((state, action, reward, nextState, done))
