@@ -2,11 +2,10 @@ import pygame
 import sys
 import numpy as np
 from constants import *
-from train import train
 from enviro import farmEnvironment
 
 # Pygame setup
-def run(sharedDQN):
+def run(player, enemy, env):
     env = farmEnvironment()
 
     pygame.init()
@@ -23,6 +22,7 @@ def run(sharedDQN):
     previous_cell_type = OPEN_SPACE
 
     grid, player_pos, enemy_pos = env.setup()
+    
 
     while running:
         clock.tick(FPS)
@@ -33,8 +33,11 @@ def run(sharedDQN):
 
         # Use the updated step function that is now in train.py
         from train import step  # Import step here to avoid circular import at the top
-        playerAction, enemyAction, done, nextState, playerReward, enemyReward, env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type = step(
-            env, grid, player_pos, enemy_pos, sharedDQN, previous_cell_type
+        playerAction, logprob_playerAction = player.select_action(np.array(grid).flatten(), deterministic=False) # use stochastic when training
+        #enemyAction, logprob_enemyAction = enemy.select_action(s, deterministic=False) # use stochastic when training
+        enemyAction = np.random.randint(0, 4)
+        nextState, playerReward, enemyReward, grid, player_pos, enemy_pos, previous_cell_type, info = step(
+            env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type
         )
         # Draw everything
         screen.fill(WHITE)

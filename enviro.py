@@ -40,7 +40,8 @@ class farmEnvironment:
 
     def playerAct(self, pos, action, grid):
         newX, newY = pos[0], pos[1]
-
+        successfully_planted = False
+        
         if action == 0 and pos[1] > 0: newY -= 1
 
         elif action == 1 and pos[1] < GRID_HEIGHT - 1: newY += 1
@@ -55,6 +56,7 @@ class farmEnvironment:
             if farmland_y < GRID_HEIGHT and grid[farmland_y][farmland_x] == OPEN_SPACE:
                 grid[farmland_y][farmland_x] = FARMLAND
                 self.farmland[(farmland_y,farmland_x)] = 1
+                successfully_planted = True
 
         elif action == 5:
             farmland_x, farmland_y = pos[0], pos[1] + 1
@@ -65,9 +67,8 @@ class farmEnvironment:
                 del self.farmland[(farmland_y,farmland_x)]
             
         if grid[newY][newX] != FENCE:
-            return [newX, newY]
-        
-        return pos
+            return [newX, newY], successfully_planted
+        return pos, successfully_planted
 
     def enemyAct(self, pos, action, grid):
         newX, newY = pos[0], pos[1]
