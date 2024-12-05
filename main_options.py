@@ -15,7 +15,7 @@ if __name__ == "__main__":
     parser.add_argument('--dvc', type=str, default='cpu', help='running device: cuda or cpu')
     parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
     parser.add_argument('--ModelIdex', type=int, default=300000, help='which model to load')
-    parser.add_argument('--episodes', type=int, default=100, help='Max episodes to train on')
+    # parser.add_argument('--episodes', type=int, default=100, help='Max episodes to train on')
     parser.add_argument('--random_player', type=str2bool, default=False, help='Run training with random policy for player')
     parser.add_argument('--random_enemy', type=str2bool, default=False, help='Run training with random policy for enemy')
 
@@ -72,6 +72,7 @@ if __name__ == "__main__":
             enemy = PPO_discrete(**vars(args))
 
             if(args.Loadmodel):
-                player.load(args.ModelIdex)        
+                player.load(args.ModelIdex)
+                enemy.load(args.ModelIdex)        
         run(player, enemy, env)
 

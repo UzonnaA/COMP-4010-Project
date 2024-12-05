@@ -40,6 +40,7 @@ class PPO_discrete():
                 return a, pi_a
 
     def train(self):
+        actor_losses_per_epoch = []
         self.entropy_coef *= self.entropy_coef_decay #exploring decay
         '''Prepare PyTorch data from Numpy data'''
         s = torch.from_numpy(self.s_hoder).to(self.dvc)
@@ -77,6 +78,7 @@ class PPO_discrete():
 
         for _ in range(self.K_epochs):
             #Shuffle the trajectory, Good for training
+            actor_losses_per_mini_batch = []
             perm = np.arange(s.shape[0])
             np.random.shuffle(perm)
             perm = torch.LongTensor(perm).to(self.dvc)
@@ -96,7 +98,9 @@ class PPO_discrete():
                 surr1 = ratio * adv[index]
                 surr2 = torch.clamp(ratio, 1 - self.clip_rate, 1 + self.clip_rate) * adv[index]
                 a_loss = -torch.min(surr1, surr2) - self.entropy_coef * entropy
-
+                
+                actor_losses_per_mini_batch.append(a_loss.mean().item())
+                
                 self.actor_optimizer.zero_grad()
                 a_loss.mean().backward()
                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 40)
@@ -111,6 +115,9 @@ class PPO_discrete():
                 self.critic_optimizer.zero_grad()
                 c_loss.backward()
                 self.critic_optimizer.step()
+            actor_losses_per_epoch.append(np.mean(actor_losses_per_mini_batch))
+        print(actor_losses_per_epoch)
+        return actor_losses_per_epoch
 
     def put_data(self, s, a, r, s_next, logprob_a, done, dw, idx):
         self.s_hoder[idx] = s

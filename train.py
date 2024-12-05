@@ -78,12 +78,19 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
     
         
     harvest_stats_by_stage = []
+    enemy_rewards_per_episode = []
+    player_rewards_per_episode = []
     destroyed_stats_by_stage = []
     planted_stats = []
     ruined_stats = []
     harvested_stats = []
-        
+    total_player_losses = []
+    total_enemy_losses = []
+    
+    loss_per_learning_call = []
     while total_steps < Max_train_steps:
+        cumulative_enemy_reward = 0
+        cumulative_player_reward = 0
         stats = {
             "stages_of_crops_harvested": [0, 0, 0, 0, 0],
             "total_harvested": 0,
@@ -121,6 +128,8 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
                 stats["total_crops_ruined"] += 1
                 
             stats["total_crops_planted"] += 1 if info["crop_successfully_planted"] else 0
+            cumulative_enemy_reward += enemyReward
+            cumulative_player_reward += playerReward
             
             '''Store the current transition'''
             if not random_player:
@@ -135,9 +144,9 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
             '''Update if its time'''
             if traj_lenth % T_horizon == 0:
                 if not random_player:
-                    player.train()
+                    total_player_losses.append(player.train())
                 if not random_enemy:
-                    enemy.train()
+                    total_enemy_losses.append(enemy.train())
                 traj_lenth = 0
 
             '''Save model'''
@@ -146,7 +155,8 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
                     player.save(total_steps)
                 if not random_enemy:
                     enemy.save(total_steps)
-                    
+        enemy_rewards_per_episode.append(cumulative_enemy_reward)
+        player_rewards_per_episode.append(cumulative_player_reward)
         harvest_stats_by_stage.append(stats["stages_of_crops_harvested"])
         destroyed_stats_by_stage.append(stats["stages_of_crops_destroyed"])
         planted_stats.append(stats["total_crops_planted"])
@@ -163,11 +173,25 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
     harvested_stats = moving_average(harvested_stats, window_size)
     ruined_stats = moving_average(ruined_stats, window_size)
     planted_stats = moving_average(planted_stats, window_size)
+    enemy_rewards_per_episode = moving_average(enemy_rewards_per_episode, window_size)
+    player_rewards_per_episode = moving_average(player_rewards_per_episode, window_size)
     
     for i in range(5):
         harvest_stats_by_stage[i] = moving_average(harvest_stats_by_stage[i], window_size)
         destroyed_stats_by_stage[i] = moving_average(destroyed_stats_by_stage[i], window_size)
-
+    
+    if not random_player:
+        total_player_losses = np.array(total_player_losses).flatten().tolist()
+        total_player_losses = moving_average(total_player_losses, window_size)
+        plot_multiple_lists([total_player_losses], "Training Steps (minibatch)", "Player Loss", ["Player Loss"], "player_loss.png")
+        
+    if not random_enemy:
+        total_enemy_losses = np.array(total_enemy_losses).flatten().tolist()
+        total_enemy_losses = moving_average(total_enemy_losses, window_size)
+        plot_multiple_lists([total_enemy_losses], "Training Steps (minibatch)", "Enemy Loss", ["Enemy Loss"], "enemy_loss.png")
+    
+    plot_multiple_lists([enemy_rewards_per_episode], "Episodes", "Enemy Reward (Moving Average)", ["Enemy Reward"], "enemy_rewards.png")
+    plot_multiple_lists([player_rewards_per_episode], "Episodes", "Player Reward (Moving Average)", ["Player Reward"], "player_rewards.png")
     plot_multiple_lists(harvest_stats_by_stage, "Episodes", "Number of crops harvested (moving average grouped by type)", ["Stage 1", "Stage 2", "Stage 3", "Stage 4", "Stage 5"], "harvested_stats_by_crop.png")
     plot_multiple_lists(destroyed_stats_by_stage, "Episodes", "Number of crops destroyed (moving average grouped by type)", ["Stage 1", "Stage 2", "Stage 3", "Stage 4", "Stage 5"], "destroyed_stats_by_crop.png")
     plot_multiple_lists([planted_stats], "Episodes", "Number of crops planted (Moving Average)", ["Planted"], "planted_stats.png")
