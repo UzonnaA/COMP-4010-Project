@@ -16,7 +16,8 @@ if __name__ == "__main__":
     parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
     parser.add_argument('--ModelIdex', type=int, default=300000, help='which model to load')
     parser.add_argument('--episodes', type=int, default=100, help='Max episodes to train on')
-
+    parser.add_argument('--random_player', type=str2bool, default=False, help='Run training with random policy for player')
+    parser.add_argument('--random_enemy', type=str2bool, default=False, help='Run training with random policy for enemy')
 
     parser.add_argument('--seed', type=int, default=209, help='random seed')
     parser.add_argument('--T_horizon', type=int, default=2048, help='lenth of long trajectory')
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         args.action_dim = 4
         args.agent_name = 'enemy'
         enemy = PPO_discrete(**vars(args))
-        network = trainPPO(player, enemy, env, args.save_interval, args.Loadmodel, args.T_horizon, args.Max_train_steps)
+        network = trainPPO(player, enemy, env, args.save_interval, args.Loadmodel, args.T_horizon, args.Max_train_steps, args.random_player, args.random_enemy)
     
     if args.mode == 'run':
         device = torch.device(args.dvc)
