@@ -41,6 +41,7 @@ class PPO_discrete():
 
     def train(self):
         actor_losses_per_epoch = []
+        critic_losses_per_epoch = []
         self.entropy_coef *= self.entropy_coef_decay #exploring decay
         '''Prepare PyTorch data from Numpy data'''
         s = torch.from_numpy(self.s_hoder).to(self.dvc)
@@ -79,6 +80,7 @@ class PPO_discrete():
         for _ in range(self.K_epochs):
             #Shuffle the trajectory, Good for training
             actor_losses_per_mini_batch = []
+            critic_losses_per_mini_batch = []
             perm = np.arange(s.shape[0])
             np.random.shuffle(perm)
             perm = torch.LongTensor(perm).to(self.dvc)
@@ -111,13 +113,13 @@ class PPO_discrete():
                 for name, param in self.critic.named_parameters():
                     if 'weight' in name:
                         c_loss += param.pow(2).sum() * self.l2_reg
-
+                critic_losses_per_mini_batch.append(c_loss.item())
                 self.critic_optimizer.zero_grad()
                 c_loss.backward()
                 self.critic_optimizer.step()
             actor_losses_per_epoch.append(np.mean(actor_losses_per_mini_batch))
-        print(actor_losses_per_epoch)
-        return actor_losses_per_epoch
+            critic_losses_per_epoch.append(np.mean(critic_losses_per_mini_batch))
+        return np.mean(actor_losses_per_epoch), np.mean(critic_losses_per_epoch)
 
     def put_data(self, s, a, r, s_next, logprob_a, done, dw, idx):
         self.s_hoder[idx] = s
