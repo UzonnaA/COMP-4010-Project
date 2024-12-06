@@ -69,10 +69,13 @@ if __name__ == "__main__":
             player = PPO_discrete(**vars(args))
             
             args.agent_name = 'enemy'
+            args.action_dim = 4
             enemy = PPO_discrete(**vars(args))
 
             if(args.Loadmodel):
-                player.load(args.ModelIdex)
-                enemy.load(args.ModelIdex)        
+                if not args.random_player:
+                    player.load(args.ModelIdex)
+                if not args.random_enemy:
+                    enemy.load(args.ModelIdex)     
         run(player, enemy, env)
 

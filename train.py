@@ -169,8 +169,8 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
             else:
                 enemyAction, logprob_enemyAction = enemy.select_action(s.flatten(), deterministic=False) # use stochastic when training
             
-            nextState, playerReward, enemyReward, s, player_pos, enemy_pos, previous_cell_type, info = step(
-                env, s, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type
+            nextState, playerReward, enemyReward, s, player_pos, enemy_pos, previous_cell_type, info = stepWithoutPenalty(
+                env, s, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type, reward_fn=rewardCalculationQuartic
             )
             done = i >= episode_length - 1
             
