@@ -8,8 +8,13 @@ import os
 from PPO import PPO_discrete
 import matplotlib.pyplot as plt
 
+def rewardCalculationLinear(stage):
+    return stage * 10
+
+def rewardCalculationQuartic(stage):
+    return (stage ** 4) * 10
 # Define the step function here to avoid circular dependency
-def step(env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type):
+def step(env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type, reward_fn=rewardCalculationLinear):
     state = np.array(grid)
     playerReward = -1
     enemyReward = -1
@@ -23,9 +28,9 @@ def step(env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_c
     if playerAction == 5:
         farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
         if (farmland_y, farmland_x) in env.farmland:
-            playerReward += env.farmland[(farmland_y, farmland_x)] * 10
+            playerReward += reward_fn(env.farmland[(farmland_y, farmland_x)])
             info["crop_stage_harvested"] = env.farmland[(farmland_y, farmland_x)]
-            enemyReward -= env.farmland[(farmland_y, farmland_x)] * 10
+            enemyReward -= reward_fn(env.farmland[(farmland_y, farmland_x)])
 
     player_pos, info["crop_successfully_planted"] = env.playerAct(player_pos, playerAction, grid)
 
@@ -33,9 +38,57 @@ def step(env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_c
     grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
     farmland_x, farmland_y = enemy_pos[0], enemy_pos[1] + 1
     if (farmland_y, farmland_x) in env.farmland:
-        enemyReward += env.farmland[(farmland_y, farmland_x)] * 10
+        enemyReward += reward_fn(env.farmland[(farmland_y, farmland_x)])
         info["crop_stage_destroyed"] = env.farmland[(farmland_y, farmland_x)]
-        playerReward -= env.farmland[(farmland_y, farmland_x)] * 10
+        playerReward -= reward_fn(env.farmland[(farmland_y, farmland_x)])
+        del env.farmland[(farmland_y, farmland_x)]
+
+    enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
+
+    # If 25 actions have been taken
+    if env.growth_tick >= 25:
+        env.grow_farmland()
+        env.growth_tick = 0
+
+    # Actions have been taken
+    env.growth_tick += 1
+
+    previous_cell_type = grid[player_pos[1]][player_pos[0]]
+
+    # Set the player's current position
+    grid[player_pos[1]][player_pos[0]] = PLAYER
+
+    # Set the enemy's current position
+    grid[enemy_pos[1]][enemy_pos[0]] = ENEMY
+
+    nextState = np.array(grid)
+    return nextState, playerReward, enemyReward, grid, player_pos, enemy_pos, previous_cell_type, info
+
+def stepWithoutPenalty(env, grid, player_pos, enemy_pos, playerAction, enemyAction, previous_cell_type, reward_fn=rewardCalculationLinear):
+    state = np.array(grid)
+    playerReward = -1
+    enemyReward = -1
+    info = {
+        "crop_stage_harvested": None,
+        "crop_successfully_planted": False,
+        "crop_stage_destroyed": None,
+    }
+    # Take player action
+    grid[player_pos[1]][player_pos[0]] = previous_cell_type
+    if playerAction == 5:
+        farmland_x, farmland_y = player_pos[0], player_pos[1] + 1
+        if (farmland_y, farmland_x) in env.farmland:
+            playerReward += reward_fn(env.farmland[(farmland_y, farmland_x)])
+            info["crop_stage_harvested"] = env.farmland[(farmland_y, farmland_x)]
+
+    player_pos, info["crop_successfully_planted"] = env.playerAct(player_pos, playerAction, grid)
+
+    # Take enemy action
+    grid[enemy_pos[1]][enemy_pos[0]] = OPEN_SPACE
+    farmland_x, farmland_y = enemy_pos[0], enemy_pos[1] + 1
+    if (farmland_y, farmland_x) in env.farmland:
+        enemyReward += reward_fn(env.farmland[(farmland_y, farmland_x)])
+        info["crop_stage_destroyed"] = env.farmland[(farmland_y, farmland_x)]
         del env.farmland[(farmland_y, farmland_x)]
 
     enemy_pos = env.enemyAct(enemy_pos, enemyAction, grid)
@@ -90,7 +143,7 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
     total_enemy_critic_losses = []
     
     while total_steps < Max_train_steps:
-        cumulative_enemy_reward = 0
+        cumulative_enemy_reward = 0 #reset all stats between episodes
         cumulative_player_reward = 0
         stats = {
             "stages_of_crops_harvested": [0, 0, 0, 0, 0],
@@ -146,7 +199,6 @@ def trainPPO(player, enemy, env, save_interval, load, T_horizon, Max_train_steps
             if traj_lenth % T_horizon == 0:
                 if not random_player:
                     actor_losses, critic_losses = player.train()
-                    print(f'player actor loss: {actor_losses}')
                     total_player_actor_losses.append(actor_losses)
                     total_player_critic_losses.append(critic_losses)
                 if not random_enemy:
