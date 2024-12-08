@@ -3,6 +3,8 @@ import sys
 import numpy as np
 from constants import *
 from enviro import farmEnvironment
+from train import stepWithoutPenalty as step
+
 
 # Pygame setup
 def run(player, enemy, env):
@@ -32,7 +34,6 @@ def run(player, enemy, env):
                 running = False
 
         # Use the updated step function that is now in train.py
-        from train import step  # Import step here to avoid circular import at the top
         playerAction, logprob_playerAction = player.select_action(np.array(grid).flatten(), deterministic=False) # use stochastic when training
         #enemyAction, logprob_enemyAction = enemy.select_action(s, deterministic=False) # use stochastic when training
         enemyAction = np.random.randint(0, 4)
