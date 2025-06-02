@@ -5,9 +5,10 @@ import torch.nn as nn
 
 # DQN class definition
 class DQN(nn.Module):
-    def __init__(self, stateSize, actionSize, device, epsilonMin=0.01, epsilon=1):
+    def __init__(self, stateSize, actionSize, device, epsilonMin=0.01, epsilon=1, agent_name='shared'):
         super(DQN, self).__init__()
         self.stateSize = stateSize
+        self.agent_name = agent_name
         self.actionSize = actionSize
         self.device = device
         self.model = self.buildModel().to(device)
@@ -60,13 +61,44 @@ class DQN(nn.Module):
         self.memory.append((state, action, reward, nextState, done))
         if len(self.memory) > 1000:
             self.memory.pop(0)
-
+    
+    def clearMemory(self): #necessary to get rid of old memories sampled from different distributions
+        self.memory = []
+        
+    def replayBatch(self):
+        if len(self.memory) < self.batchSize:
+            return
+        
+        miniBatch = random.sample(self.memory, self.batchSize)
+        
+        states, actions, rewards, nextStates, dones = zip(*miniBatch)
+        
+        states = torch.FloatTensor(states).to(self.device)
+        nextStates = torch.FloatTensor(nextStates).to(self.device)
+        rewards = torch.FloatTensor(rewards).to(self.device)
+        dones = torch.FloatTensor(dones).to(self.device)
+        
+        currentQ = self.model(states).gather(1, torch.LongTensor(actions).view(-1, 1).to(self.device)).squeeze(1)
+        maxNextQ = self.model(nextStates).max(1)[0]
+        expectedQ = rewards + (self.gamma * maxNextQ * (1 - dones))
+        
+        loss = nn.MSELoss()(currentQ, expectedQ.detach())
+        
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        if self.epsilon > self.epsilonMin:
+            self.epsilon *= self.epsilonDecay
+        return loss.item()
+    
     def replay(self):
         if len(self.memory) < self.batchSize:
             return
         
         miniBatch = random.sample(self.memory, self.batchSize)
-
+        
+        losses = []
         for (state, action, reward, nextState, done) in miniBatch:
             target = reward
 
@@ -83,9 +115,15 @@ class DQN(nn.Module):
             self.optimizer.zero_grad()
             output = self.model(state)
             loss = nn.MSELoss()(output, targetF)
+            losses.append(loss.item())
 
             loss.backward()
             self.optimizer.step()
 
         if self.epsilon > self.epsilonMin:
             self.epsilon *= self.epsilonDecay
+        return np.mean(losses)
+    def save(self, episode):
+        torch.save(self.model.state_dict(), f"./model/{self.agent_name}dqn_{episode}.pth")
+    def load(self, episode):
+        self.model.load_state_dict(torch.load(f"./model/{self.agent_name}dqn_{episode}.pth", map_location=self.device))
