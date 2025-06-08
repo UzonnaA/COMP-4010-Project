@@ -1,6 +1,6 @@
 # 🧠 COMP-4010 Project: Reinforcement Learning in Multi-Agent Worlds
 
-This project explores how reinforcement learning agents—using algorithms like Deep Q-Networks (DQN) and Proximal Policy Optimization (PPO)—behave in complex multi-agent environments. The goal is to understand how these agents learn, adapt, and perform in scenarios that involve both cooperation and competition.
+This project explores how reinforcement learning agents behave in complex multi-agent environments using algorithms like Deep Q-Networks (DQN) and Proximal Policy Optimization (PPO). The goal is to understand how these agents learn, adapt, and perform in scenarios that involve both cooperation and competition.
 
 ---
 
