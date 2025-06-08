@@ -9,7 +9,7 @@ This project explores how reinforcement learning agents behave in complex multi-
 Inside this repo, you’ll find:
 
 - 🧠 **Learning Agents**: Agents trained using DQN and PPO to make decisions based on rewards and their environment.
-- 🤖 **Multi-Agent Experiments**: Simulations where agents interact with each other—sometimes working together, sometimes against each other.
+- 🤖 **Multi-Agent Experiments**: Simulations where agents work against each other.
 - 🎯 **Custom Rewards**: We tested different reward strategies, like quartic rewards, to see how they influence agent behavior.
 - 📊 **Performance Tracking**: Training graphs and visualizations that show how well agents learn over time in various settings.
 
