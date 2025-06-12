@@ -1,52 +1,58 @@
-# 🧠 COMP-4010 Project: Reinforcement Learning in Multi-Agent Worlds
+# COMP-4010 Project: Reinforcement Learning in Multi-Agent Worlds
 
-This project explores how reinforcement learning agents behave in complex multi-agent environments using algorithms like Deep Q-Networks (DQN) and Proximal Policy Optimization (PPO). The goal is to understand how these agents learn, adapt, and perform in scenarios.  
+This project was part of COMP-4010 and focused on exploring how reinforcement learning agents behave in multi-agent environments. We worked with algorithms like DQN and PPO to test how agents adapt, learn from rewards, and evolve their strategies over time.
 
----
-
-## 🚀 What This Project Is About
-
-Inside this repo, you’ll find:
-
-- 🧠 **Learning Agents**: Agents trained using DQN and PPO to make decisions based on rewards and their environment.
-- 🤖 **Multi-Agent Experiments**: Simulations where agents work against each other.
-- 🎯 **Custom Rewards**: We tested different reward strategies, like quartic rewards, to see how they influence agent behavior.
-- 📊 **Performance Tracking**: Training graphs and visualizations that show how well agents learn over time in various settings.
+We used this as a chance to dive into real training experiments, visualize learning performance, and explore how reward shaping impacts agent behavior.
 
 ---
 
-## 📁 What’s in the Repo
+## What This Project Covers
 
-Each folder highlights a different experiment or scenario we tested:
+Inside the repo, you’ll find:
 
-- `control_graphs/`: Results from baseline control tests.
-- `default_graphs/`: Standard training runs.
-- `double_agent_training/`: Two-agent environments and training outcomes.
-- `dqn_experiments/`: All the DQN training runs and visualizations.
-- `ppo_experiments/`: PPO agent training experiments.
-- `ppo_solofarmer_training_graphs/` & `ppo_solozombie_training_graphs/`: Single-agent PPO training results.
-- `quartic_rewards_*`: Training outcomes when we modified the reward structure.
-- `randomized_policy_graphs/`: Experiments using randomized agent policies.
-- `submission/`: Final deliverables submitted for the course.
+- Learning agents built with DQN and PPO
+- Simulations where agents either compete or learn in parallel
+- Custom reward functions like quartic-based rewards
+- Training graphs and metrics to track how agents perform across experiments
 
 ---
 
-## 🛠️ Tech & Tools
+## Project Structure
 
-| What | Tools |
-|------|-------|
+Here’s what each folder contains:
+
+- `control_graphs/` — Results from control/baseline tests
+- `default_graphs/` — Training runs using standard reward setups
+- `double_agent_training/` — Multi-agent training and evaluations
+- `dqn_experiments/` — All DQN training graphs and outcomes
+- `ppo_experiments/` — PPO-based training results
+- `ppo_solofarmer_training_graphs/`, `ppo_solozombie_training_graphs/` — Isolated single-agent tests
+- `quartic_rewards_*` — Experiments using nonlinear (quartic) reward shaping
+- `randomized_policy_graphs/` — Tests with agents using randomized strategies
+- `submission/` — Final course submission material
+
+---
+
+## Tools and Libraries
+
+| Area | Tool |
+|------|------|
 | Language | Python |
-| RL Framework | Stable Baselines3 |
+| RL Library | Stable Baselines3 |
 | Visualization | Matplotlib |
-| Environment | Custom-built multi-agent simulation |
+| Environment | Custom multi-agent simulation environment |
 
 ---
 
-## 📈 What We Found
+## Key Takeaways
 
-Each experiment folder includes graphs that show how our agents learned (or didn’t!). These visualizations helped us analyze training speed, reward optimization, and strategy development under different conditions.
+Throughout the project, we tracked performance using graphs and reward metrics to understand how agents adapted in different scenarios. It was especially interesting to see how non-standard reward functions changed agent behavior and learning speed.
+
+This project gave us a deeper understanding of how reinforcement learning actually works when applied to dynamic, agent-driven environments.
 
 ---
+
+
 
 ## 🤝 Thanks & Credits
 
